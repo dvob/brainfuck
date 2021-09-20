@@ -4,10 +4,10 @@ use std::io::Write;
 
 #[derive(Debug, PartialEq)]
 enum Command {
-    MoveRight,
-    MoveLeft,
-    Increment,
-    Decrement,
+    MoveRight(usize),
+    MoveLeft(usize),
+    Increment(u8),
+    Decrement(u8),
     Print,
     Read,
     Loop(Vec<Command>),
@@ -18,12 +18,13 @@ where
     I: Iterator<Item = char>,
 {
     let mut commands = Vec::new();
+    let prev_command: Command;
     while let Some(c) = input.next() {
         let command = match c {
-            '>' => Command::MoveRight,
-            '<' => Command::MoveLeft,
-            '+' => Command::Increment,
-            '-' => Command::Decrement,
+            '>' => Command::MoveRight(1),
+            '<' => Command::MoveLeft(1),
+            '+' => Command::Increment(1),
+            '-' => Command::Decrement(1),
             '.' => Command::Print,
             ',' => Command::Read,
             '[' => Command::Loop(parse_commands(input)?),
@@ -61,10 +62,10 @@ impl Engine {
     ) -> Result<(), Box<dyn Error>> {
         for command in commands {
             match command {
-                Command::Increment => self.data[self.pos] = self.val().wrapping_add(1),
-                Command::Decrement => self.data[self.pos] = self.val().wrapping_sub(1),
-                Command::MoveRight => self.pos +=  1,
-                Command::MoveLeft => self.pos -= 1,
+                Command::Increment(i) => self.data[self.pos] = self.val().wrapping_add(*i),
+                Command::Decrement(i) => self.data[self.pos] = self.val().wrapping_sub(*i),
+                Command::MoveRight(i) => self.pos +=  i,
+                Command::MoveLeft(i) => self.pos -= i,
                 Command::Print => out.write_all(&[self.val()])?,
                 Command::Read => todo!(),
                 Command::Loop(loop_commands) => {
@@ -98,12 +99,12 @@ fn test() -> Result<(), Box<dyn Error>> {
     assert_eq!(
         commands,
         vec![
-            Command::Increment,
-            Command::MoveRight,
-            Command::Increment,
-            Command::Increment,
-            Command::MoveLeft,
-            Command::Decrement,
+            Command::Increment(1),
+            Command::MoveRight(1),
+            Command::Increment(1),
+            Command::Increment(1),
+            Command::MoveLeft(1),
+            Command::Decrement(1),
         ]
     );
     let mut engine = Engine::new();
