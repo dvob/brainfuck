@@ -32,10 +32,10 @@ where
         };
         commands.push(command);
     }
-    Ok(opt_cmds(commands))
+    Ok(commands)
 }
 
-fn opt_cmds(commands: Vec<Command>) -> Vec<Command> {
+fn optimize_commands(commands: Vec<Command>) -> Vec<Command> {
     let mut optimized_commands = Vec::new();
     if commands.len() == 0 {
         return optimized_commands;
@@ -50,7 +50,7 @@ fn opt_cmds(commands: Vec<Command>) -> Vec<Command> {
             (Command::Decrement(i), Command::Decrement(j)) => prev = Command::Decrement(i+j),
             (p, Command::Loop(loop_cmds)) => {
                 optimized_commands.push(p);
-                prev = Command::Loop(opt_cmds(loop_cmds))
+                prev = Command::Loop(optimize_commands(loop_cmds))
             },
             (p,cmd) => {
                 optimized_commands.push(p);
@@ -130,7 +130,7 @@ fn test_opt_cmds() {
         ])
     ];
 
-    let commands = opt_cmds(commands);
+    let commands = optimize_commands(commands);
     assert_eq!(commands, vec![
         Command::Increment(2),
         Command::MoveRight(2),
@@ -165,10 +165,68 @@ fn test() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+fn count_instructions(commands: &Vec<Command>) -> u32 {
+    let mut instructions = 0;
+    for cmd in commands {
+         instructions += match cmd {
+            Command::Loop(loop_commands) => count_instructions(loop_commands),
+            _ => 1,
+        }
+    }
+    instructions
+}
+
+fn print_info(commands: Vec<Command>) {
+    println!("instructions: {}", count_instructions(&commands));
+    let commands = optimize_commands(commands);
+    println!("optimized instructions: {}", count_instructions(&commands));
+}
+
+fn print_usage() {
+    println!("usage: brainfuck FILE");
+    println!("");
+    println!("Flags:");
+    println!(" -i, --info    print information about the brainfuck source file");
+    println!(" -h, --help    print information about the brainfuck source file");
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
-    let file_name: String = std::env::args().nth(1).unwrap();
-    let input = std::fs::read_to_string(file_name)?;
+    let mut info = false;
+    let mut args = Vec::new();
+    for arg in std::env::args().skip(1) {
+        if arg.starts_with("-") {
+            let arg = arg.trim_start_matches("-");
+            match arg {
+                "i" | "info" => info = true,
+                "h" | "help" => {
+                    print_usage();
+                    std::process::exit(0);
+                },
+                _ => {
+                    print!("unknown option {}", arg);
+                    std::process::exit(1);
+                },
+            }
+        } else {
+            args.push(arg)
+        }
+    }
+    if args.len() == 0 {
+        println!("missing source file");
+        print_usage();
+        std::process::exit(1);
+    }
+    if args.len() > 1 {
+        println!("only one source file supported");
+        std::process::exit(1);
+    }
+    let input = std::fs::read_to_string(&args[0])?;
     let commands = parse_commands(&mut input.chars())?;
+    if info {
+        print_info(commands);
+        return Ok(())
+    }
+    let commands = optimize_commands(commands);
     let mut engine = Engine::new();
     engine.execute(&commands, &mut std::io::stdout())?;
     Ok(())
