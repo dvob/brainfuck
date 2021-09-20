@@ -50,6 +50,10 @@ impl Engine {
         }
     }
 
+    fn val(&self) -> u8 {
+        self.data[self.pos]
+    }
+
     fn execute<W: Write>(
         &mut self,
         commands: &[Command],
@@ -57,40 +61,14 @@ impl Engine {
     ) -> Result<(), Box<dyn Error>> {
         for command in commands {
             match command {
-                Command::Increment => {
-                    if self.data[self.pos] == u8::MAX {
-                        self.data[self.pos] = 0
-                    } else {
-                        self.data[self.pos] += 1
-                    }
-                }
-                Command::Decrement => {
-                    if self.data[self.pos] == 0 {
-                        self.data[self.pos] = u8::MAX;
-                    } else {
-                        self.data[self.pos] -= 1
-                    }
-                }
-                Command::MoveRight => {
-                    if self.pos == MAX_POSITIONS - 1 {
-                        self.pos = 0
-                    } else {
-                        self.pos += 1
-                    }
-                }
-                Command::MoveLeft => {
-                    if self.pos == 0 {
-                        self.pos = MAX_POSITIONS - 1
-                    } else {
-                        self.pos -= 1
-                    }
-                }
-                Command::Print => {
-                    out.write_all(&[self.data[self.pos]])?;
-                }
+                Command::Increment => self.data[self.pos] = self.val().wrapping_add(1),
+                Command::Decrement => self.data[self.pos] = self.val().wrapping_sub(1),
+                Command::MoveRight => self.pos +=  1,
+                Command::MoveLeft => self.pos -= 1,
+                Command::Print => out.write_all(&[self.val()])?,
                 Command::Read => todo!(),
                 Command::Loop(loop_commands) => {
-                    while self.data[self.pos] != 0 {
+                    while self.val() != 0 {
                         self.execute(loop_commands, out)?;
                     }
                 }
@@ -98,31 +76,6 @@ impl Engine {
         }
         Ok(())
     }
-}
-
-#[test]
-fn test_pos_overflow() -> Result<(), Box<dyn Error>> {
-    let mut buf = BufWriter::new(Vec::new());
-    let input = ">+";
-    let commands = parse_commands(&mut input.chars())?;
-    let mut engine = Engine::new();
-    engine.pos = MAX_POSITIONS - 1;
-    engine.execute(&commands, &mut buf)?;
-    assert_eq!(engine.pos, 0);
-    assert_eq!(engine.data[0], 1);
-    Ok(())
-}
-
-#[test]
-fn test_pos_underflow() -> Result<(), Box<dyn Error>> {
-    let mut buf = BufWriter::new(Vec::new());
-    let input = "<+";
-    let commands = parse_commands(&mut input.chars())?;
-    let mut engine = Engine::new();
-    engine.execute(&commands, &mut buf)?;
-    assert_eq!(engine.pos, MAX_POSITIONS - 1);
-    assert_eq!(engine.data[MAX_POSITIONS - 1], 1);
-    Ok(())
 }
 
 #[test]
