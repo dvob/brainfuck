@@ -18,7 +18,6 @@ where
     I: Iterator<Item = char>,
 {
     let mut commands = Vec::new();
-    let prev_command: Command;
     while let Some(c) = input.next() {
         let command = match c {
             '>' => Command::MoveRight(1),
@@ -33,7 +32,34 @@ where
         };
         commands.push(command);
     }
-    Ok(commands)
+    Ok(opt_cmds(commands))
+}
+
+fn opt_cmds(commands: Vec<Command>) -> Vec<Command> {
+    let mut optimized_commands = Vec::new();
+    if commands.len() == 0 {
+        return optimized_commands;
+    }
+    let mut cmds = commands.into_iter();
+    let mut prev = cmds.next().unwrap();
+    for cmd in cmds {
+        match (prev,cmd) {
+            (Command::MoveRight(i), Command::MoveRight(j)) => prev = Command::MoveRight(i+j),
+            (Command::MoveLeft(i), Command::MoveLeft(j)) => prev = Command::MoveLeft(i + j),
+            (Command::Increment(i), Command::Increment(j)) => prev = Command::Increment(i + j),
+            (Command::Decrement(i), Command::Decrement(j)) => prev = Command::Decrement(i+j),
+            (p, Command::Loop(loop_cmds)) => {
+                optimized_commands.push(p);
+                prev = Command::Loop(opt_cmds(loop_cmds))
+            },
+            (p,cmd) => {
+                optimized_commands.push(p);
+                prev = cmd;
+            }
+        }
+    }
+    optimized_commands.push(prev);
+    optimized_commands
 }
 
 const MAX_POSITIONS: usize = 30000;
@@ -89,6 +115,29 @@ fn test_hello_world() -> Result<(), Box<dyn Error>> {
     let output = String::from_utf8(buf.into_inner()?)?;
     assert_eq!(output, "hello world");
     Ok(())
+}
+
+#[test]
+fn test_opt_cmds() {
+    let commands = vec![
+        Command::Increment(1),
+        Command::Increment(1),
+        Command::MoveRight(1),
+        Command::MoveRight(1),
+        Command::Loop(vec![
+            Command::Decrement(1),
+            Command::Decrement(1),
+        ])
+    ];
+
+    let commands = opt_cmds(commands);
+    assert_eq!(commands, vec![
+        Command::Increment(2),
+        Command::MoveRight(2),
+        Command::Loop(vec![
+            Command::Decrement(2),
+        ])
+    ])
 }
 
 #[test]
