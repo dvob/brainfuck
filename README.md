@@ -2,5 +2,5 @@
 A brainfuck interpreter written in Rust.
 
 ```
-cargo run -- hello_world.bf
+cargo run -- examples/hello_world.bf
 ```
