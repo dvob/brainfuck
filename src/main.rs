@@ -186,18 +186,21 @@ fn print_usage() {
     println!("Usage: brainfuck FILE");
     println!("");
     println!("Flags:");
-    println!(" -i, --info    Print information about the brainfuck source file and exit");
-    println!(" -h, --help    Show this help message");
+    println!(" -d, --disable  Disable optimization of code");
+    println!(" -i, --info     Print information about the brainfuck source file and exit");
+    println!(" -h, --help     Show this help message");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut info = false;
+    let mut optimize = true;
     let mut args = Vec::new();
     for arg in std::env::args().skip(1) {
         if arg.starts_with("-") {
             let arg = arg.trim_start_matches("-");
             match arg {
                 "i" | "info" => info = true,
+                "d" | "disable" => optimize = false,
                 "h" | "help" => {
                     print_usage();
                     std::process::exit(0);
@@ -220,12 +223,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         std::process::exit(1);
     }
     let input = std::fs::read_to_string(&args[0])?;
-    let commands = parse_commands(&mut input.chars())?;
+    let mut commands = parse_commands(&mut input.chars())?;
     if info {
         print_info(commands);
         return Ok(())
     }
-    let commands = optimize_commands(commands);
+    if optimize {
+        commands = optimize_commands(commands);
+    }
     let mut engine = Engine::new();
     engine.execute(&commands, &mut std::io::stdout())?;
     Ok(())
