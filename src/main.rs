@@ -183,11 +183,11 @@ fn print_info(commands: Vec<Command>) {
 }
 
 fn print_usage() {
-    println!("usage: brainfuck FILE");
+    println!("Usage: brainfuck FILE");
     println!("");
     println!("Flags:");
-    println!(" -i, --info    print information about the brainfuck source file");
-    println!(" -h, --help    print information about the brainfuck source file");
+    println!(" -i, --info    Print information about the brainfuck source file and exit");
+    println!(" -h, --help    Show this help message");
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -203,7 +203,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     std::process::exit(0);
                 },
                 _ => {
-                    print!("unknown option {}", arg);
+                    write!(std::io::stderr(), "unknown option {}\n", arg)?;
                     std::process::exit(1);
                 },
             }
@@ -212,12 +212,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
     if args.len() == 0 {
-        println!("missing source file");
-        print_usage();
+        write!(std::io::stderr(), "missing source file\n")?;
         std::process::exit(1);
     }
     if args.len() > 1 {
-        println!("only one source file supported");
+        write!(std::io::stderr(), "only one source file supported\n")?;
         std::process::exit(1);
     }
     let input = std::fs::read_to_string(&args[0])?;
