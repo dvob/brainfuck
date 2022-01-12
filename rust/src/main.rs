@@ -1,5 +1,4 @@
 use std::error::Error;
-use std::io::BufWriter;
 use std::io::Write;
 
 #[derive(Debug, PartialEq)]
@@ -105,66 +104,6 @@ impl Engine {
     }
 }
 
-#[test]
-fn test_hello_world() -> Result<(), Box<dyn Error>> {
-    let mut buf = BufWriter::new(Vec::new());
-    let input = "+[-[<<[+[--->]-[<<<]]]>>>-]>-.---.>..>.<<<<-.<+.>>>>>.>.<<.<-.";
-    let commands = parse_commands(&mut input.chars())?;
-    let mut engine = Engine::new();
-    engine.execute(&commands, &mut buf)?;
-    let output = String::from_utf8(buf.into_inner()?)?;
-    assert_eq!(output, "hello world");
-    Ok(())
-}
-
-#[test]
-fn test_opt_cmds() {
-    let commands = vec![
-        Command::Increment(1),
-        Command::Increment(1),
-        Command::MoveRight(1),
-        Command::MoveRight(1),
-        Command::Loop(vec![
-            Command::Decrement(1),
-            Command::Decrement(1),
-        ])
-    ];
-
-    let commands = optimize_commands(commands);
-    assert_eq!(commands, vec![
-        Command::Increment(2),
-        Command::MoveRight(2),
-        Command::Loop(vec![
-            Command::Decrement(2),
-        ])
-    ])
-}
-
-#[test]
-fn test() -> Result<(), Box<dyn Error>> {
-    let mut buf = BufWriter::new(Vec::new());
-    let input = "+>++<-";
-    let commands = parse_commands(&mut input.chars())?;
-    assert_eq!(
-        commands,
-        vec![
-            Command::Increment(1),
-            Command::MoveRight(1),
-            Command::Increment(1),
-            Command::Increment(1),
-            Command::MoveLeft(1),
-            Command::Decrement(1),
-        ]
-    );
-    let mut engine = Engine::new();
-    engine.execute(&commands, &mut buf)?;
-    let output = String::from_utf8(buf.into_inner()?)?;
-    assert_eq!(engine.data[0], 0);
-    assert_eq!(engine.data[1], 2);
-    assert_eq!(output, "");
-    Ok(())
-}
-
 fn count_instructions(commands: &Vec<Command>) -> u32 {
     let mut instructions = 0;
     for cmd in commands {
@@ -234,4 +173,69 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut engine = Engine::new();
     engine.execute(&commands, &mut std::io::stdout())?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::BufWriter;
+    #[test]
+    fn test_hello_world() -> Result<(), Box<dyn Error>> {
+        let mut buf = BufWriter::new(Vec::new());
+        let input = "+[-[<<[+[--->]-[<<<]]]>>>-]>-.---.>..>.<<<<-.<+.>>>>>.>.<<.<-.";
+        let commands = parse_commands(&mut input.chars())?;
+        let mut engine = Engine::new();
+        engine.execute(&commands, &mut buf)?;
+        let output = String::from_utf8(buf.into_inner()?)?;
+        assert_eq!(output, "hello world");
+        Ok(())
+    }
+    
+    #[test]
+    fn test_opt_cmds() {
+        let commands = vec![
+            Command::Increment(1),
+            Command::Increment(1),
+            Command::MoveRight(1),
+            Command::MoveRight(1),
+            Command::Loop(vec![
+                Command::Decrement(1),
+                Command::Decrement(1),
+            ])
+        ];
+    
+        let commands = optimize_commands(commands);
+        assert_eq!(commands, vec![
+            Command::Increment(2),
+            Command::MoveRight(2),
+            Command::Loop(vec![
+                Command::Decrement(2),
+            ])
+        ])
+    }
+    
+    #[test]
+    fn test() -> Result<(), Box<dyn Error>> {
+        let mut buf = BufWriter::new(Vec::new());
+        let input = "+>++<-";
+        let commands = parse_commands(&mut input.chars())?;
+        assert_eq!(
+            commands,
+            vec![
+                Command::Increment(1),
+                Command::MoveRight(1),
+                Command::Increment(1),
+                Command::Increment(1),
+                Command::MoveLeft(1),
+                Command::Decrement(1),
+            ]
+        );
+        let mut engine = Engine::new();
+        engine.execute(&commands, &mut buf)?;
+        let output = String::from_utf8(buf.into_inner()?)?;
+        assert_eq!(engine.data[0], 0);
+        assert_eq!(engine.data[1], 2);
+        assert_eq!(output, "");
+        Ok(())
+    }
 }

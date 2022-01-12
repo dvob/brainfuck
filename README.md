@@ -1,6 +1,3 @@
 # brainfuck
-A brainfuck interpreter written in Rust.
-
-```
-cargo run -- examples/hello_world.bf
-```
+Brainfuck interpreters written in various languages:
+* [rust](./rust)
