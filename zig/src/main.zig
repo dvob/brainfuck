@@ -1,57 +1,153 @@
 const std = @import("std");
-
-const vm = @import("vm.zig");
+const Allocator = std.mem.Allocator;
 
 const MAX_FILE_SIZE: usize = 100 * 1_000_000;
+
+const Op = enum {
+    Add,
+    Sub,
+    Right,
+    Left,
+    Loop,
+    Print,
+};
+
+const Instruction = union {
+    op: Op,
+    loop: []Instruction,
+};
 
 pub fn main() anyerror!void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
+    std.log.err("vm.Instruction={d}\n*vm.Instruction={d}", .{ @sizeOf(Instruction), @sizeOf(*Instruction) });
     if (std.os.argv.len < 2) {
         std.log.warn("missing source file argument", .{});
         return;
     }
 
-    var file = std.os.argv[1];
-
-    var f = try std.fs.cwd().openFileZ(file, .{ .read = true });
-    var code = try f.readToEndAlloc(gpa, MAX_FILE_SIZE);
+    var fileName = std.os.argv[1];
+    var file = try std.fs.cwd().openFileZ(fileName, .{ .read = true });
+    var code = try file.readToEndAlloc(gpa, MAX_FILE_SIZE);
     defer gpa.free(code);
-    var inst = std.ArrayList(vm.Instruction).init(gpa);
-    defer inst.deinit();
 
-    _ = try compile(code, &inst);
-    // for (inst.items) |item, index| {
-    //     std.debug.print("{}: {}\n", .{ index, item });
-    // }
+    var comp = compiler.new(gpa, code);
+    var inst = try comp.compile();
 
-    var engine = vm.Vm.new(inst.items);
-    try engine.run();
+    // try disassemble(inst);
+
+    var engine = vm.new();
+    try engine.run(inst);
 }
 
-fn compile(code: []const u8, inst: *std.ArrayList(vm.Instruction)) anyerror!usize {
+fn disassemble(code: []Instruction) anyerror!void {
+    const out = std.io.getStdOut().writer();
     var i: usize = 0;
+    // std.log.info("{}", .{code.items.len});
+    // std.log.info("{}", .{code.items[1].op});
     while (i < code.len) {
-        switch (code[i]) {
-            '+' => try inst.append(vm.Instruction{ .Inc = 1 }),
-            '-' => try inst.append(vm.Instruction{ .Dec = 1 }),
-            '>' => try inst.append(vm.Instruction{ .IncRef = 1 }),
-            '<' => try inst.append(vm.Instruction{ .DecRef = 1 }),
-            '.' => try inst.append(vm.Instruction.Print),
-            '[' => {
-                try inst.append(vm.Instruction{ .CondJump = 0 });
-                var addr = inst.items.len - 1;
-                i += (try compile(code[i + 1 ..], inst)) + 1;
-                try inst.append(vm.Instruction{ .Jump = addr });
-                inst.items[addr] = vm.Instruction{ .CondJump = inst.items.len };
+        // std.log.info("{}", .{i});
+        // std.log.info("{}", .{code.items[i].op});
+        var op = code[i].op;
+        switch (op) {
+            Op.Add => try out.print("ADD\n", .{}),
+            Op.Sub => try out.print("SUB\n", .{}),
+            Op.Right => try out.print("RIGHT\n", .{}),
+            Op.Left => try out.print("LEFT\n", .{}),
+            Op.Print => try out.print("PRINT\n", .{}),
+            Op.Loop => {
+                try out.print("LOOP\n", .{});
+                i += 1;
+                try disassemble(code[i].loop);
+                try out.print("END LOOP\n", .{});
             },
-            ']' => {
-                return i;
-            },
-            else => {},
         }
         i += 1;
     }
-    return i;
 }
+
+const compiler = struct {
+    source: []const u8,
+    index: usize,
+    alloc: Allocator,
+
+    fn new(alloc: Allocator, source: []const u8) compiler {
+        return compiler{
+            .source = source,
+            .alloc = alloc,
+            .index = 0,
+        };
+    }
+
+    fn next(self: *compiler) ?u8 {
+        if (self.index < self.source.len) {
+            self.index += 1;
+            return self.source[self.index - 1];
+        }
+        return null;
+    }
+
+    fn compile(self: *compiler) anyerror![]Instruction {
+        var list = std.ArrayList(Instruction).init(self.alloc);
+        while (self.next()) |char| {
+            switch (char) {
+                '+' => try list.append(Instruction{ .op = Op.Add }),
+                '-' => try list.append(Instruction{ .op = Op.Sub }),
+                '>' => try list.append(Instruction{ .op = Op.Right }),
+                '<' => try list.append(Instruction{ .op = Op.Left }),
+                '.' => try list.append(Instruction{ .op = Op.Print }),
+                '[' => {
+                    try list.append(Instruction{ .op = Op.Loop });
+                    var loop: []Instruction = try self.compile();
+                    try list.append(Instruction{ .loop = loop });
+                },
+                ']' => {
+                    return list.items;
+                },
+                else => {},
+            }
+        }
+        return list.items;
+    }
+};
+
+const vm = struct {
+    mem: [30000]u8,
+    mp: usize,
+
+    fn new() vm {
+        return vm{
+            .mem = [_]u8{0} ** 30000,
+            .mp = 0,
+        };
+    }
+    fn run(self: *vm, code: []Instruction) anyerror!void {
+        var i: usize = 0;
+        const out = std.io.getStdOut();
+        while (i < code.len) {
+            // std.log.info("i={}, op={}, mem={}, mp={}", .{
+            //     i,
+            //     code.items[i].op,
+            //     self.mem[self.mp],
+            //     self.mp,
+            // });
+            // var buf: [1]u8 = [1]u8{0};
+            // _ = try std.io.getStdIn().reader().read(buf);
+            switch (code[i].op) {
+                Op.Add => self.mem[self.mp] +%= 1,
+                Op.Sub => self.mem[self.mp] -%= 1,
+                Op.Right => self.mp += 1,
+                Op.Left => self.mp -= 1,
+                Op.Print => _ = try out.write(self.mem[self.mp .. self.mp + 1]),
+                Op.Loop => {
+                    i += 1;
+                    while (self.mem[self.mp] != 0) {
+                        try self.run(code[i].loop);
+                    }
+                },
+            }
+            i += 1;
+        }
+    }
+};
