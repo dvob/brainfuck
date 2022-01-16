@@ -10,8 +10,7 @@ const (
 	SUB
 	RIGHT
 	LEFT
-	JUMP
-	CONDJUMP
+	LOOP
 	PRINT
 )
 
@@ -31,33 +30,50 @@ func main() {
 
 	c.compile()
 
-	//disassemble(c.code)
+	// disassemble(c.code, 0)
 
 	v := newVM(c.code)
-	v.run()
-	//fmt.Println(inst)
+	v.run(0)
 }
 
 type compiler struct {
+	index int
 	input []byte
-	addrs []int
-	code  []int
+	// loops loop
+	loopStack []int
+	code      [][]int
 }
 
 func newCompiler(input []byte) *compiler {
 	return &compiler{
-		input: input,
+		input:     input,
+		code:      [][]int{[]int{}},
+		loopStack: []int{0},
 	}
 }
 
-func (c *compiler) emit(op ...int) {
-	c.code = append(c.code, op...)
+func (c *compiler) currentLoop() int {
+	return c.loopStack[len(c.loopStack)-1]
 }
 
-func (c *compiler) compile() int {
-	i := 0
-	for i < len(c.input) {
-		switch c.input[i] {
+func (c *compiler) enterLoop() {
+	newLoopIndex := len(c.code)
+	c.emit(LOOP, newLoopIndex)
+	c.loopStack = append(c.loopStack, newLoopIndex)
+	c.code = append(c.code, []int{})
+}
+
+func (c *compiler) exitLoop(op ...int) {
+	c.loopStack = c.loopStack[:len(c.loopStack)-1]
+}
+
+func (c *compiler) emit(op ...int) {
+	c.code[c.currentLoop()] = append(c.code[c.currentLoop()], op...)
+}
+
+func (c *compiler) compile() error {
+	for c.index < len(c.input) {
+		switch c.input[c.index] {
 		case '+':
 			c.emit(ADD)
 		case '-':
@@ -69,40 +85,33 @@ func (c *compiler) compile() int {
 		case '.':
 			c.emit(PRINT)
 		case '[':
-			c.addrs = append(c.addrs, len(c.code))
-			c.emit(CONDJUMP, -1)
+			c.enterLoop()
 		case ']':
-			addr := c.addrs[len(c.addrs)-1]
-			c.addrs = c.addrs[:len(c.addrs)-1]
-			c.emit(JUMP, addr)
-			c.code[addr+1] = len(c.code)
+			c.exitLoop()
 		}
-		i += 1
+		c.index++
 	}
-	return i
-
+	return nil
 }
 
-func disassemble(code []int) {
+func disassemble(code [][]int, level int) {
 	i := 0
-	for i < len(code) {
-		switch code[i] {
+	for i < len(code[level]) {
+		switch code[level][i] {
 		case ADD:
-			fmt.Printf("%d ADD\n", i)
+			fmt.Printf("%d ADD\n", level)
 		case SUB:
-			fmt.Printf("%d SUB\n", i)
+			fmt.Printf("%d SUB\n", level)
 		case RIGHT:
-			fmt.Printf("%d RIGHT\n", i)
+			fmt.Printf("%d RIGHT\n", level)
 		case LEFT:
-			fmt.Printf("%d LEFT\n", i)
+			fmt.Printf("%d LEFT\n", level)
 		case PRINT:
-			fmt.Printf("%d PRINT\n", i)
-		case JUMP:
-			fmt.Printf("%d JUMP %d\n", i, code[i+1])
+			fmt.Printf("%d PRINT\n", level)
+		case LOOP:
+			fmt.Printf("%d LOOP %d\n", level, code[level][i+1])
 			i += 1
-		case CONDJUMP:
-			fmt.Printf("%d CONDJUMP %d\n", i, code[i+1])
-			i += 1
+			disassemble(code, level+1)
 		default:
 			fmt.Println(i, "unknown code")
 		}
@@ -113,20 +122,19 @@ func disassemble(code []int) {
 type vm struct {
 	mem  [30000]uint8
 	mp   int
-	ip   int
-	code []int
+	code [][]int
 }
 
-func newVM(code []int) *vm {
+func newVM(code [][]int) *vm {
 	return &vm{
 		code: code,
 	}
 }
 
-func (v *vm) run() error {
-	for v.ip < len(v.code) {
-		// fmt.Printf("ip=%d, mp=%d, op=%d, mem=%d\n", v.ip, v.mp, v.code[v.ip], v.mem[v.mp])
-		switch v.code[v.ip] {
+func (v *vm) run(loop int) error {
+	i := 0
+	for i < len(v.code[loop]) {
+		switch v.code[loop][i] {
 		case ADD:
 			v.mem[v.mp] += 1
 		case SUB:
@@ -137,20 +145,14 @@ func (v *vm) run() error {
 			v.mp -= 1
 		case PRINT:
 			fmt.Printf("%c", v.mem[v.mp])
-		case JUMP:
-			v.ip += 1
-			addr := v.code[v.ip]
-			v.ip = addr
-			continue
-		case CONDJUMP:
-			v.ip += 1
-			addr := v.code[v.ip]
-			if v.mem[v.mp] == 0 {
-				v.ip = addr
-				continue
+		case LOOP:
+			i++
+			innerLoop := v.code[loop][i]
+			for v.mem[v.mp] != 0 {
+				v.run(innerLoop)
 			}
 		}
-		v.ip += 1
+		i += 1
 	}
 	return nil
 }
