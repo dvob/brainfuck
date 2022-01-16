@@ -14,7 +14,7 @@ const Op = enum {
 
 const Instruction = union {
     op: Op,
-    loop: []Instruction,
+    loop: *[]Instruction,
 };
 
 pub fn main() anyerror!void {
@@ -59,7 +59,7 @@ fn disassemble(code: []Instruction) anyerror!void {
             Op.Loop => {
                 try out.print("LOOP\n", .{});
                 i += 1;
-                try disassemble(code[i].loop);
+                try disassemble(code[i].loop.*);
                 try out.print("END LOOP\n", .{});
             },
         }
@@ -99,8 +99,9 @@ const compiler = struct {
                 '.' => try list.append(Instruction{ .op = Op.Print }),
                 '[' => {
                     try list.append(Instruction{ .op = Op.Loop });
-                    var loop: []Instruction = try self.compile();
-                    try list.append(Instruction{ .loop = loop });
+                    const ptr = try self.alloc.create([]Instruction);
+                    ptr.* = try self.compile();
+                    try list.append(Instruction{ .loop = ptr });
                 },
                 ']' => {
                     return list.items;
@@ -143,7 +144,7 @@ const vm = struct {
                 Op.Loop => {
                     i += 1;
                     while (self.mem[self.mp] != 0) {
-                        try self.run(code[i].loop);
+                        try self.run(code[i].loop.*);
                     }
                 },
             }
