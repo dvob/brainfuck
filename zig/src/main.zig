@@ -21,7 +21,6 @@ pub fn main() anyerror!void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
-    std.log.err("vm.Instruction={d}\n*vm.Instruction={d}", .{ @sizeOf(Instruction), @sizeOf(*Instruction) });
     if (std.os.argv.len < 2) {
         std.log.warn("missing source file argument", .{});
         return;
@@ -33,6 +32,7 @@ pub fn main() anyerror!void {
     defer gpa.free(code);
 
     var comp = compiler.new(gpa, code);
+    defer comp.deinit();
     var inst = try comp.compile();
 
     // try disassemble(inst);
@@ -66,12 +66,12 @@ fn disassemble(code: []Instruction) anyerror!void {
 const compiler = struct {
     source: []const u8,
     index: usize,
-    alloc: Allocator,
+    alloc: std.heap.ArenaAllocator,
 
     fn new(alloc: Allocator, source: []const u8) compiler {
         return compiler{
             .source = source,
-            .alloc = alloc,
+            .alloc = std.heap.ArenaAllocator.init(alloc),
             .index = 0,
         };
     }
@@ -84,8 +84,12 @@ const compiler = struct {
         return null;
     }
 
+    fn deinit(self: *compiler) void {
+        self.alloc.deinit();
+    }
+
     fn compile(self: *compiler) anyerror![]Instruction {
-        var list = std.ArrayList(Instruction).init(self.alloc);
+        var list = std.ArrayList(Instruction).init(self.alloc.allocator());
         while (self.next()) |char| {
             switch (char) {
                 '+' => try list.append(Instruction{ .op = Op.Add }),
@@ -146,3 +150,21 @@ const vm = struct {
         }
     }
 };
+
+test "brainfuck interpretation" {
+    const code = "+[-[<<[+[--->]-[<<<]]]>>>-]>-.---.>..>.<<<<-.<+.>>>>>.>.<<.<-.";
+
+    var comp = compiler.new(std.testing.allocator, code);
+    defer comp.deinit();
+    var inst = try comp.compile();
+
+    // try disassemble(inst);
+
+    var list = std.ArrayList(u8).init(std.testing.allocator);
+    defer list.deinit();
+
+    var engine = vm.new();
+    try engine.run(list.writer(), inst);
+
+    try std.testing.expect(std.mem.eql(u8, list.items, "hello world"));
+}
