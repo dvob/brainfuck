@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	// disassemble(c.code, 0)
 
 	v := newVM(c.code)
-	v.run(0)
+	v.run(0, os.Stdout)
 }
 
 type compiler struct {
@@ -131,7 +132,7 @@ func newVM(code [][]int) *vm {
 	}
 }
 
-func (v *vm) run(loop int) error {
+func (v *vm) run(loop int, out io.Writer) error {
 	i := 0
 	for i < len(v.code[loop]) {
 		switch v.code[loop][i] {
@@ -144,12 +145,15 @@ func (v *vm) run(loop int) error {
 		case LEFT:
 			v.mp -= 1
 		case PRINT:
-			fmt.Printf("%c", v.mem[v.mp])
+			_, err := out.Write(v.mem[v.mp : v.mp+1])
+			if err != nil {
+				return err
+			}
 		case LOOP:
 			i++
 			innerLoop := v.code[loop][i]
 			for v.mem[v.mp] != 0 {
-				v.run(innerLoop)
+				v.run(innerLoop, out)
 			}
 		}
 		i += 1
