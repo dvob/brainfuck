@@ -38,17 +38,13 @@ pub fn main() anyerror!void {
     // try disassemble(inst);
 
     var engine = vm.new();
-    try engine.run(inst);
+    try engine.run(std.io.getStdOut().writer(), inst);
 }
 
 fn disassemble(code: []Instruction) anyerror!void {
     const out = std.io.getStdOut().writer();
     var i: usize = 0;
-    // std.log.info("{}", .{code.items.len});
-    // std.log.info("{}", .{code.items[1].op});
     while (i < code.len) {
-        // std.log.info("{}", .{i});
-        // std.log.info("{}", .{code.items[i].op});
         var op = code[i].op;
         switch (op) {
             Op.Add => try out.print("ADD\n", .{}),
@@ -122,9 +118,8 @@ const vm = struct {
             .mp = 0,
         };
     }
-    fn run(self: *vm, code: []Instruction) anyerror!void {
+    fn run(self: *vm, writer: anytype, code: []Instruction) anyerror!void {
         var i: usize = 0;
-        const out = std.io.getStdOut();
         while (i < code.len) {
             // std.log.info("i={}, op={}, mem={}, mp={}", .{
             //     i,
@@ -139,11 +134,11 @@ const vm = struct {
                 Op.Sub => self.mem[self.mp] -%= 1,
                 Op.Right => self.mp += 1,
                 Op.Left => self.mp -= 1,
-                Op.Print => _ = try out.write(self.mem[self.mp .. self.mp + 1]),
+                Op.Print => _ = try writer.write(self.mem[self.mp .. self.mp + 1]),
                 Op.Loop => {
                     i += 1;
                     while (self.mem[self.mp] != 0) {
-                        try self.run(code[i].loop);
+                        try self.run(writer, code[i].loop);
                     }
                 },
             }
