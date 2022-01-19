@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import sys
-from enum import Enum
 
-class Inst(Enum):
-  right = 1
-  left = 2
-  inc = 3
-  dec = 4
-  prt = 5
+RIGHT = 0
+LEFT = 1
+INC = 2
+DEC = 3
+LOOP = 4
+PRINT = 5
 
 class Vm:
   def __init__(self):
@@ -17,16 +16,16 @@ class Vm:
 
   def run(self, code):
     for i in code:
-      if i == Inst.right:
+      if i == RIGHT:
         self.mp += 1
-      elif i == Inst.left:
+      elif i == LEFT:
         self.mp -= 1
-      elif i == Inst.inc:
+      elif i == INC:
         if self.mem[self.mp] == 255:
           self.mem[self.mp] = 0
         else:
           self.mem[self.mp] = self.mem[self.mp] + 1
-      elif i == Inst.dec:
+      elif i == DEC:
         if self.mem[self.mp] == 0:
           self.mem[self.mp] = 255
         else:
@@ -34,26 +33,26 @@ class Vm:
       elif isinstance(i, list):
         while self.mem[self.mp] != 0:
           self.run(i)
-      elif i == Inst.prt:
+      elif i == PRINT:
         print(chr(self.mem[self.mp]), end='')
 
 def compile(raw_code):
   code = []
   for c in raw_code:
     if c == "<":
-      code.append(Inst.left)
+      code.append(LEFT)
     elif c == ">":
-      code.append(Inst.right)
+      code.append(RIGHT)
     elif c == "+":
-      code.append(Inst.inc)
+      code.append(INC)
     elif c == "-":
-      code.append(Inst.dec)
+      code.append(DEC)
     elif c == "[":
       code.append(compile(raw_code))
     elif c == "]":
       return code
     elif c == ".":
-      code.append(Inst.prt)
+      code.append(PRINT)
   return code
 
 def main():
