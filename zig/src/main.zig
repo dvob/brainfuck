@@ -21,13 +21,16 @@ pub fn main() anyerror!void {
     var general_purpose_allocator = std.heap.GeneralPurposeAllocator(.{}){};
     const gpa = general_purpose_allocator.allocator();
 
-    if (std.os.argv.len < 2) {
+    var args = try std.process.argsAlloc(gpa);
+    defer std.process.argsFree(gpa, args);
+
+    if (args.len < 2) {
         std.log.warn("missing source file argument", .{});
         return;
     }
 
-    var fileName = std.os.argv[1];
-    var file = try std.fs.cwd().openFileZ(fileName, .{ .read = true });
+    var fileName = args[1];
+    var file = try std.fs.cwd().openFile(fileName, .{ .read = true });
     var code = try file.readToEndAlloc(gpa, MAX_FILE_SIZE);
     defer gpa.free(code);
 
