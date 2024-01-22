@@ -30,7 +30,7 @@ pub fn main() anyerror!void {
     }
 
     var fileName = args[1];
-    var file = try std.fs.cwd().openFile(fileName, .{ .read = true });
+    var file = try std.fs.cwd().openFileZ(fileName, .{});
     var code = try file.readToEndAlloc(gpa, MAX_FILE_SIZE);
     defer gpa.free(code);
 
