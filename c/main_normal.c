@@ -1,5 +1,6 @@
 #include "helper.h"
 #include <stdio.h>
+#include <sys/types.h>
 
 const size_t MAX_MEMORY = 30000;
 
@@ -16,6 +17,7 @@ typedef enum {
 
 typedef struct {
   OpKind kind;
+  // change this to u_int32_t reduces the mandelbrot runtime almost by 50%
   size_t operand;
 } Op;
 

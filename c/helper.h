@@ -58,7 +58,11 @@ bool read_file(const char *path, String *str) {
     }
   }
 
-  fread(str->data + str->len, m, 1, f);
+  size_t ret = fread(str->data + str->len, m, 1, f);
+  if (m != ret) {
+    fclose(f);
+    return false;
+  };
   if (ferror(f)) {
     fclose(f);
     return false;

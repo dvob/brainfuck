@@ -21,7 +21,7 @@ bool run_bf(String *prg) {
 
   int inner = 0;
 
-  for (int i = 0; i < prg->size; i++) {
+  for (int i = 0; i < prg->len; i++) {
     char c = prg->data[i];
     // fprintf(stderr, "i=%d, c=%c, index=%zu, mem=%zu\n", i, c, index,
     //         mem[index]);

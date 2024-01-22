@@ -1,7 +1,7 @@
 # C
 
 ```shell
-cc -o main main_naive.c
+cc -03 -o main main_naive.c
 # or
-cc -o main main_normal.c
+cc -03 -o main main_normal.c
 ```
