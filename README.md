@@ -5,3 +5,4 @@ Brainfuck interpreters written in various languages:
 * [zig](./zig)
 * [go](./go)
 * [python](./python)
+* [c](./c) 
