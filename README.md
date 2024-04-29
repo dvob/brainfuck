@@ -6,3 +6,4 @@ Brainfuck interpreters written in various languages:
 * [go](./go)
 * [python](./python)
 * [c](./c) 
+* [javascript](./javascript)
