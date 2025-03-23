@@ -7,3 +7,4 @@ Brainfuck interpreters written in various languages:
 * [python](./python)
 * [c](./c) 
 * [javascript](./javascript)
+* [mojo](./mojo)
